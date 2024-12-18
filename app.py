@@ -192,8 +192,23 @@ def statusPrinter():
                 break
         if printer != dev_name:
             return jsonify({"message": "printer not found"}), 400
-        
-    return 0
+
+    with open(tmp_file, "w") as f:
+        f.write(" ")
+
+    try:
+        conn.printFile(printer, tmp_file, "Trabajo de prueba", {})
+    except:
+        ################################
+        return jsonify({"message": ""}), 400
+    time.sleep(3)
+    attr = conn.getPrinterAttributes(printer_name)
+    state = attr["printer-state"]
+    msg = attr["printer-state-message"]
+    conn.cancelJob(job)
+    if state == 3:
+        msg = "Ready to print"
+    return jsonify({"message": msg}), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
