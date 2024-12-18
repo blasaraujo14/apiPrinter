@@ -98,6 +98,7 @@ def printData():
     try:
         printers = conn.getPrinters()
     except:
+        ################################
         return jsonify({"message": ""}), 400
     if printer not in printers:
         # guardar nueva impresora
@@ -105,6 +106,7 @@ def printData():
         try:
             devices = conn.getDevices()
         except:
+            ################################
             return jsonify(), 400
         for device_uri, device_info in devices.items():
             dev_name = device_info.get("device-info", "Impresora sin nombre").replace(" ", "_")
@@ -124,6 +126,7 @@ def printData():
             conn.enablePrinter(printer)
             conn.acceptJobs(printer)
         except:
+            ################################
             return jsonify({}), 400
 
     # Campos obligatorios?
@@ -145,6 +148,7 @@ def printData():
         conn.printFile(printer, tmp_file, "Trabajo raw", options)
         return jsonify({"message": "Impresion exitosa"}), 200
     except:
+        ################################
         return jsonify({"message": ""}), 400
     
 
@@ -162,6 +166,34 @@ def getPrinters():
             printers.append(device_name)
     return jsonify({"printers": printers}), 200
 
+@app.route('/statusPrinter', methods=['GET'])
+def statusPrinter():
+    if not request.is_json:
+        data = {}
+    else:
+        data = request.get_json()
+    if "printer" not in data:
+        return jsonify({"message": "printer not selected"}), 400
+    printer = data.get("printer")
+    try:
+        printers = conn.getPrinters()
+    except:
+        return jsonify({"message": ""}), 400
+    if printer not in printers:
+        dev_name = ""
+        try:
+            devices = conn.getDevices()
+        except:
+            ################################
+            return jsonify(), 400
+        for _, device_info in devices.items():
+            dev_name = device_info.get("device-info", "Impresora sin nombre").replace(" ", "_")
+            if printer == dev_name:
+                break
+        if printer != dev_name:
+            return jsonify({"message": "printer not found"}), 400
+        
+    return 0
 
 if __name__ == '__main__':
     app.run(debug=True)
