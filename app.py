@@ -1,9 +1,5 @@
 from flask import Flask, request, jsonify
-from datetime import datetime
-import requests
-import json
 import cups
-from PIL import Image
 import numpy as np
 
 app = Flask(__name__)
@@ -96,13 +92,20 @@ def printData():
     if template not in [1,2,3]:
         return jsonify({"message": "Template does not exist"}), 400
 
+    if "printer" not in data:
+        return jsonify({"message": "printer not selected"}), 400
     printer = data.get("printer")
-    printers = list(conn.getPrinters().keys())
-
-    if printer not in conn.getPrinters():
+    try:
+        printers = conn.getPrinters()
+    except:
+        return jsonify({"message": ""}), 400
+    if printer not in printers:
         # guardar nueva impresora
         dev_name = ""
-        devices = conn.getDevices()
+        try:
+            devices = conn.getDevices()
+        except:
+            return jsonify(), 400
         for device_uri, device_info in devices.items():
             dev_name = device_info.get("device-info", "Impresora sin nombre").replace(" ", "_")
             dev_uri = device_uri
@@ -111,16 +114,17 @@ def printData():
                 break
         if printer != dev_name:
             return jsonify({"message": "printer not found"}), 400
-        conn.addPrinter(
-            name=printer,
-            device=dev_uri,
-            #ppdname=driver,
-            location=dev_info.get("device-location", ""),
-            info=printer
-        )
-        conn.enablePrinter(printer)
-        conn.acceptJobs(printer)
-    #return jsonify({"message": printers}), 200
+        try:
+            conn.addPrinter(
+                name=printer,
+                device=dev_uri,
+                location=dev_info.get("device-location", ""),
+                info=printer
+            )
+            conn.enablePrinter(printer)
+            conn.acceptJobs(printer)
+        except:
+            return jsonify({}), 400
 
     # Campos obligatorios?
     '''
@@ -137,40 +141,27 @@ def printData():
     with open(tmp_file, "w") as f:
         f.write(commands)
 
-    # try?
-    tmp_file = "cmdZPL_3.txt"
-    conn.printFile(printer, tmp_file, "Trabajo raw", options)
-    return jsonify({"message": "Impresion exitosa"}), 200
+    try:
+        conn.printFile(printer, tmp_file, "Trabajo raw", options)
+        return jsonify({"message": "Impresion exitosa"}), 200
+    except:
+        return jsonify({"message": ""}), 400
+    
 
 @app.route('/getPrinters', methods=['GET'])
 def getPrinters():
     printers = list(conn.getPrinters().keys())
 
-    devices = conn.getDevices()
-    for device_uri, device_info in devices.items():
+    try:
+        devices = conn.getDevices()
+    except:
+        return jsonify(), 400
+    for _, device_info in devices.items():
         device_name = device_info.get("device-info", "Impresora sin nombre").replace(" ", "_")
         if device_name not in printers:
             printers.append(device_name)
     return jsonify({"printers": printers}), 200
 
-@app.route('/selectPrinter', methods=['POST'])
-def selPrinter():
-    global printer_name
-    if not request.is_json:
-        data = {}
-    else:
-        data = request.get_json()
-    new_printer = data.get("printer", "")
-
-    if new_printer in conn.getPrinters():
-        printer_name = new_printer
-        return jsonify({"message": "Printer {printer_name} selected"}), 200
-    else:
-        return jsonify({"message": "Printer {new_printer} does not exist"}), 400
 
 if __name__ == '__main__':
-    #app.run(debug=True)
-    conn = cups.Connection()
-    printers = conn.getPrinters()
-    for printer in printers.items():
-        print(printer[1].get('printer-state',''))
+    app.run(debug=True)
