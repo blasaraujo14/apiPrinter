@@ -1,5 +1,9 @@
 from flask import Flask, request, jsonify
+from datetime import datetime
+import requests
+import json
 import cups
+from PIL import Image
 import numpy as np
 
 app = Flask(__name__)
@@ -9,67 +13,66 @@ tmp_file = "tmpFile.txt"
 conn = cups.Connection()
 
 def genCommands(data, template):
-    cmd = "^Q150,0,0\n^W70\n^H5\n^P1\n^S2\n^AD\n^C1\n^R0\n~Q+0\n^O0\n^D0\n^E12\n~R255\n^XSET,ROTATION,0\n^L\nDy2-me-dd\nTh:m:s\nDy2-me-dd\nTh:m:s"
+    cmd = "^XA\n^FWR"
     if template == 1:
-        cmd += "\nAC,28,1174,1,1,0,3,"+ data.get("nombre_empresa", "")
-        cmd += "\nAB,28,848,1,1,0,3,DENOMINACION COMERCIAL\nAC,63,840,1,1,0,3," + data.get("den_comercial", "")
-        cmd += "\nAB,103,848,1,1,0,3,NOMBRE CIENTIFICO:\nAC,138,840,1,1,0,3," + data.get("nombre_cientifico", "")
-        cmd += "\nAB,178,848,1,1,0,3,ZONA DE CAPTURA:\nAB,178,610,1,1,0,3," + data.get("zona_captura", "")
-        cmd += "\nAB,213,848,1,1,0,3,FAO\nAC,243,800,1,1,0,3," + data.get("fao", "")
-        cmd += "\nAB,283,848,1,1,0,3,PESO NETO:\nAC,313,800,1,1,0,3,"+ data.get("peso_neto", "") + "\nAB,338,670,1,1,0,3,KG"
-        cmd += "\nAA,400,915,1,1,0,3,CAPTURADO:\nAB,400,802,1,1,0,3," + data.get("fecha_capturado", "")
-        cmd += "\nAA,400,597,1,1,0,3,ENVASADO:\nAB,400,491,1,1,0,3," + data.get("fecha_envasado", "")
-        cmd += "\nAA,400,302,1,1,0,3,CADUCIDAD:\nAB,400,194,1,1,0,3," + data.get("fecha_caducidad", "")
-        cmd += "\nAB,243,598,1,1,0,3,PRESENTACION:\nAB,283,590,1,1,0,3," + data.get("presentacion", "") + "\nAB,338,590,1,1,0,3," + data.get("conservacion", "")
-        cmd += "\nAB,243,328,1,1,0,3,METODO PRODUCCION:\nAB,283,320,1,1,0,3," + data.get("metodo_prod", "")
-        cmd += "\nAA,28,406,1,1,0,3," + data.get("direccion1", "") + "\nAA,52,406,1,1,0,3," + data.get("direccion2", "") + "\nAA,76,406,1,1,0,3," + data.get("direccion3", "")
-        cmd += "\nAB,100,406,1,1,0,3,CALIBRE:\nAA,128,406,1,1,0,3,ARTE DE PESCA:\nAA,148,398,1,1,0,3," + data.get("arte_pesca", "")
-        cmd += "\nAB,168,406,1,1,0,3,LOTE:\nAB,168,335,1,1,0,3," + data.get("lote", "")
-        cmd += "\nAB,196,406,1,1,0,3,BUQUE:\nAB,196,316,1,1,0,3," + data.get("buque", "")
-        cmd += "\nLo,14,1186,554,1186\nLo,14,860,374,860\nLo,14,418,219,418\nLo,238,610,368,610\nLo,238,340,322,340"
-        cmd += "\nBQ,442,1091,2,5,66,3,1," + data.get("codigo_barras", "")
-        if data.get("codigo_qr", "") != "":
-            cmd += "\nW125,1180,5,2,M,8,7,41,3\n" + data.get("codigo_qr")
+        cmd += "\n^CF0,25\n^FO517,36^FD" + data.get("nombre_empresa", "")+"^FS"
+        cmd += "\n^CF0,20\n^FO522,362^FDDENOMINACION COMERCIAL:^FS\n^CF0,25\n^FO482,370^FD" + data.get("den_comercial", "")+"^FS"
+        cmd += "\n^CF0,20\n^FO447,362^FDNOMBRE CIENTIFICO:^FS\n^CF0,25\n^FO407,370^FD" + data.get("nombre_cientifico", "")+"^FS"
+        #cmd += "\n^CF0,25\n^FO459,656^FDHKE^FS"
+        cmd += "\n^CF0,20\n^FO372,362^FDZONA DE CAPTURA:^FS\n^FO372,600^FD" + data.get("zona_captura", "")+"^FS"
+        cmd += "\n^FO337,362^FDFAO^FS\n^CF0,25\n^FO302,410^FD" + data.get("fao", "")+"^FS"
+        cmd += "\n^CF0,20\n^FO267,362^FDPESO NETO:^FS\n^CF0,25\n^FO232,410^FD" + data.get("peso_neto", "")+"^FS"
+        cmd += "\n^CF0,20\n^FO212,540^FDKG^FS\n^CF0,15\n^FO155,295^FDCAPTURADO:^FS\n^CF0,20\n^FO150,408^FD" + data.get("fecha_capturado", "")+"^FS"
+        cmd += "\n^CF0,15\n^FO155,613^FDENVASADO:^FS\n^CF0,20\n^FO150,719^FD" + data.get("fecha_envasado", "")+"^FS"
+        cmd += "\n^CF0,15\n^FO155,908^FDCADUCIDAD:^FS\n^CF0,20\n^FO150,1016^FD" + data.get("fecha_caducidad", "") + "^FS"
+        cmd += "\n^FO307,612^FDPRESENTACION:^FS\n^FO267,620^FD" + data.get("presentacion", "") + "^FS\n^FO212,620^FD"+ data.get("conservacion", "") + "^FS"
+        cmd += "\n^FO307,882^FDMETODO PRODUCCION:^FS\n^FO267,890^FD" + data.get("metodo_prod", "") + "^FS"
+        cmd += "\n^CF0,15\n^FO527,804^FD" + data.get("direccion1", "") + "^FS\n^FO503,804^FD" +  data.get("direccion2", "") + "^FS\n^FO479,804^FD" +  data.get("direccion3", "") + "^FS"
+        cmd += "\n^CF0,20\n^FO450,804^FDCALIBRE:^FS\n^CF0,15\n^FO427,804^FDARTE DE PESCA:^FS\n^FO407,812^FD" + data.get("arte_pesca", "") + "^FS"
+        cmd += "\n^CF0,20\n^FO382,804^FDLOTE:^FS\n^FO382,875^FD" + data.get("lote", "") + "^FS"
+        cmd += "\n^FO354,804^FDBUQUE:^FS\n^FO354,894^FD" + data.get("buque", "") + "^FS"
+        cmd += "\n^BY2,2,1^BQR,2,5^FO246,35^FDQ0" + data.get("codigo_qr") + "^FS"
+        cmd += "\n^BY2,2,90^BC^FO40,128^FD" + data.get("codigo_barras") + "^FS"
+        cmd += "\n^FO15,23^GB540,1,1^FS\n^FO195,349^GB360,1,1^FS\n^FO350,791^GB205,1,1^FS\n^FO201,599^GB130,1,1^FS\n^FO247,869^GB84,1,1^FS"
     elif template == 2:
-        cmd += "\nAA,28,1174,1,1,0,3,PRODUCTO DISTRIBUIDO POR:" # Añadir codigo para imagen
-        cmd += "\nAA,208,1174,1,1,0,3,PRODUCTO\nAA,227,1174,1,1,0,3,ELABORADO POR:" # Añadir imagen?
-        cmd += "\nAA,272,1174,1,1,0,3,FECHA EXPEDICION\nAA,272,1003,1,1,0,3," + data.get("fecha_expedicion", "")
-        cmd += "\nAA,300,1174,1,1,0,3,FECHA CADUCIDAD\nAA,300,1003,1,1,0,3," + data.get("fecha_caducidad", "")
-        cmd += "\nAB,28,844,1,1,0,3,ZONA DE CAPTURA:\nAB,28,613,1,1,0,3," + data.get("zona_captura", "")
-        cmd += "\nAB,58,844,1,1,0,3,FAO\nAB,58,782,1,1,0,3," + data.get("fao", "")
-        cmd += "\nAB,88,844,1,1,0,3,NOMBRE COMERCIAL:\nAC,113,836,1,1,0,3," + data.get("den_comercial", "")
-        cmd += "\nAB,153,844,1,1,0,3,NOMBRE CIENTIFICO:\nAC,178,836,1,1,0,3," + data.get("nombre_cientifico", "")
-        cmd += "\nAB,218,844,1,1,0,3,ARTE DE PESCA:\nAB,243,840,1,1,0,3," + data.get("arte_pesca", "")
-        cmd += "\nAB,283,844,1,1,0,3,PESO NETO:\nAC,313,800,1,1,0,3," + data.get("peso_neto", "") + "\nAB,338,654,1,1,0,3,KG"
-        cmd += "\nAB,243,572,1,1,0,3,PIEZAS\nAA,283,550,1,1,0,3,PRESENTACION:\nAB,313,542,1,1,0,3," + data.get("presentacion", "") + "\nAA,343,542,1,1,0,3," + data.get("conservacion", "")
-        cmd += "\nAA,283,286,1,1,0,3,PRODUCCION:\nAA,313,286,1,1,0,3," + data.get("produccion", "")
-        cmd += "\nAB,388,1174,1,1,0,3,LOTE\nAB,388,1106,1,1,0,3," + data.get("lote", "")
-        cmd += "\nAB,388,916,1,1,0,3,BARCO:\nAB,388,820,1,1,0,3," + data.get("barco", "")
-        cmd += "\nAB,388,460,1,1,0,3,IDENT. EXT:\nAB,388,320,1,1,0,3," + data.get("ident_ext", "")
-        cmd += "\nLo,14,1186,554,1186\nLo,14,856,374,856\nLo,14,416,256,416\nLo,14,71,460,71\nLo,275,562,366,562"
-        cmd += "\nBQ,433,1097,2,5,79,3,1," + data.get("codigo_barras", "")
-        if data.get("codigo_qr", "") != "":
-            cmd += "\nW28,404,5,2,M,8,7,32,3\n" + data.get("codigo_qr", "")
+        cmd += "\n^BY2,2,1^BQR,2,5^FO339,798^FDQ0" + data.get("codigo_qr") + "^FS"
+        cmd += "\n^BY2,2,90^BC^FO44,105^FD" + data.get("codigo_barras") + "^FS"
+        cmd += "\n^CF0,15\n^FO519,32^FDPRODUCTO DISTRIBUIDO POR:^FS\n^CF0,20\n^FO440,132^FD{IMG}^FS" # Añadir codigo para imagen
+        cmd += "\n^CF0,15\n^FO339,32^FDPRODUCTO^FS\n^FO320,32^FDELABORADO POR:^FS" # Añadir imagen?
+        cmd += "\n^FO275,32^FDFECHA EXPEDICION^FS\n^FO275,203^FD" + data.get("fecha_expedicion", "") + "^FS"
+        cmd += "\n^FO247,32^FDFECHA CADUCIDAD^FS\n^FO247,203^FD" + data.get("fecha_caducidad", "") + "^FS"
+        cmd += "\n^CF0,20\n^FO514,362^FDZONA DE CAPTURA:^FS\n^FO514,593^FD" + data.get("zona_captura", "") + "^FS"
+        cmd += "\n^FO484,362^FDFAO^FS\n^FO484,424^FD" + data.get("fao", "") + "^FS"
+        cmd += "\n^FO454,362^FDNOMBRE COMERCIAL:^FS\n^CF0,25\n^FO424,370^FD" + data.get("den_comercial", "") + "^FS"
+        cmd += "\n^CF0,20\n^FO389,362^FDNOMBRE CIENTIFICO:^FS\n^CF0,25\n^FO359,370^FD" + data.get("nombre_cientifico", "") + "^FS"
+        cmd += "\n^CF0,20^FO324,362^FDARTE DE PESCA:^FS\n^FO299,366^FD" + data.get("arte_pesca", "") + "^FS"
+        cmd += "\n^FO259,362^FDPESO NETO:^FS\n^CF0,25\n^FO224,406^FD" + data.get("peso_neto", "") + "^FS\n^CF0,20\n^FO204,552^FDKG^FS"
+        cmd += "\n^FO299,634^FDPIEZAS^FS\n^CF0,15\n^FO264,656^FDPRESENTACION:^FS\n^CF0,20\n^FO229,664^FD" + data.get("presentacion", "") + "^FS\n^CF0,15\n^FO204,664^FD" + data.get("conservacion", "") + "^FS"
+        cmd += "\n^FO264,920^FDPRODUCCION:^FS\n^FO234,920^FDCAPTURADO:^FS\n^FO214,960^FD" +data.get("fecha_capturado", "") + "^FS"
+        cmd += "\n^CF0,20\n^FO154,32^FDLOTE^FS\n^FO154,100^FD" + data.get("lote", "") + "^FS"
+        cmd += "\n^FO154,290^FDBARCO:^FS\n^FO154,386^FD" + data.get("barco", "") + "^FS"
+        cmd += "\n^FO154,746^FDIDENT. EXT:^FS\n^FO154,886^FD" + data.get("ident_ext", "") + "^FS"
+        cmd += "\n^FO8,19^GB540,1,1^FS\n^FO187,349^GB360,1,1^FS\n^FO305,789^GB242,1,1^FS\n^FO101,1134^GB446,1,1^FS\n^FO195,643^GB91,1,1^FS"
     elif template == 3:
-        cmd += "\nAB,28,1174,1,1,0,3," + data.get("nombre_empresa", "")
-        cmd += "\nAA,85,1174,1,1,0,3," + data.get("direccion", "")
-        cmd += "\nAA,272,1174,1,1,0,3,EMBALAMENTO:\nAA,272,1015,1,1,0,3," + data.get("fecha_embalamento", "")
-        cmd += "\nAA,300,1174,1,1,0,3,EXPEDIÇAO:\nAA,300,1015,1,1,0,3," + data.get("fecha_expedicion", "")
-        cmd += "\nAA,328,1174,1,1,0,3,CONSUMIR ATÉ:\nAA,328,1015,1,1,0,3," + data.get("fecha_caducidad", "")
-        cmd += "\nAB,28,844,1,1,0,3,DENOMINAÇAO COMERCIAL:\nAC,52,836,1,1,0,3," + data.get("den_comercial", "")
-        cmd += "\nAB,92,844,1,1,0,3,NOMBRE CIENTÍFICO:\nAC,117,836,1,1,0,3," + data.get("nombre_cientifico", "")
-        cmd += "\nAB,179,842,1,1,0,3,ZONA DE CAPTURA:\nAB,179,617,1,1,0,3," + data.get("zona_captura", "")
-        cmd += "\nAB,209,842,1,1,0,3,FAO\nAB,209,785,1,1,0,3," + data.get("fao", "")
-        cmd += "\nAB,108,404,1,1,0,3,CALIBRE:\nAB,138,404,1,1,0,3,ARTE DE PESCA:\nAB,163,396,1,1,0,3," + data.get("arte_pesca", "")
-        cmd += "\nAB,228,404,1,1,0,3,LOTE:\nAB,228,333,1,1,0,3," + data.get("lote", "")
-        cmd += "\nAB,283,844,1,1,0,3,PESO NETO:\nAC,313,800,1,1,0,3," + data.get("peso_neto", "") + "\nAB,338,654,1,1,0,3,KG"
-        cmd += "\nAA,283,550,1,1,0,3,PRESENTAÇAO:\nAA,313,542,1,1,0,3," + data.get("presentacion", "") + "\nAA,343,542,1,1,0,3," + data.get("conservacion", "")
-        cmd += "\nAA,280,322,1,1,0,3,METODO DE PRODUÇAO:\nAA,304,314,1,1,0,3," + data.get("metodo_prod", "")
-        cmd += "\nAB,388,1174,1,1,0,3,BUQUE:\nAB,388,1078,1,1,0,3," + data.get("buque", "")
-        cmd += "\nAB,388,392,1,1,0,3,PAIS DE ORIGEM:\nAB,388,200,1,1,0,3," + data.get("pais", "")
-        cmd += "\nLo,14,1186,554,1186\nLo,14,856,374,856\nLo,14,416,256,416\nLo,14,71,460,71\nLo,272,562,370,562\nLo,272,334,331,334"
-        cmd += "\nBQ,426,1170,2,5,79,3,1," + data.get("codigo_barras", "")
-    cmd += "\nE"
+       cmd += "\n^BY2,2,90^BC^FO58,24^FD" + data.get("codigo_barras") + "^FS"
+       cmd += "\n^CF0,20\n^FO518,28^FD" + data.get("nombre_empresa", "") + "^FS"
+       cmd += "\n^CF0,15\n^FO466,28^FD" + data.get("direccion", "") + "^FS"
+       cmd += "\n^FO279,28^FDEMBALAMENTO:^FS\n^FO279,187^FD" + data.get("fecha_embalamento", "") + "^FS"
+       cmd += "\n^FO251,28^FDEXPEDIÇAO:^FS\n^FO251,187^FD" + data.get("fecha_expedicion", "") + "^FS"
+       cmd += "\n^FO223,28^FDCONSUMIR ATÉ:^FS\n^FO223,187^FD" + data.get("fecha_caducidad", "") + "^FS"
+       cmd += "\n^CF0,20\n^FO518,358^FDDENOMINAÇAO COMERCIAL:^FS\n^CF0,25\n^FO489,366^FD" + data.get("den_comercial", "") + "^FS"
+       cmd += "\n^CF0,20\n^FO454,358^FDNOMBRE CIENTÍFICO:^FS\n^CF0,25\n^FO424,366^FD" + data.get("nombre_cientifico", "") + "^FS"
+       cmd += "\n^CF0,20\n^FO367,360^FDZONA DE CAPTURA:^FS\n^FO367,585^FD" + data.get("zona_captura", "") + "^FS"
+       cmd += "\n^FO337,360^FDFAO^FS\n^FO337,417^FD" + data.get("fao", "") + "^FS"
+       cmd += "\n^FO438,798^FDCALIBRE:^FS\n^FO408,798^FDARTE DE PESCA:^FS\n^FO383,806^FD" + data.get("arte_pesca", "") + "^FS"
+       cmd += "\n^FO318,798^FDLOTE:^FS\n^FO318,869^FD" + data.get("lote", "") + "^FS"
+       cmd += "\n^FO263,358^FDPESO NETO:^FS\n^CF0,25^FO228,402^FD" + data.get("peso_neto", "") + "^FS\n^CF0,20\n^FO208,548^FDKG^FS"
+       cmd += "\n^CF0,15\n^FO268,652^FDPRESENTAÇAO:^FS\n^FO238,660^FD" + data.get("presentacion", "") + "^FS\n^FO208,660^FD" + data.get("conservacion", "") + "^FS"
+       cmd += "\n^FO271,880^FDMETODO DE PRODUÇAO:^FS\n^FO247,888^FD" + data.get("metodo_prod", "") + "^FS"
+       cmd += "\n^CF0,20\n^FO158,28^FDBUQUE:^FS\n^FO158,124^FD" + data.get("buque", "") + "^FS"
+       cmd += "\n^FO158,810^FDPAIS DE ORIGEM:^FS\n^FO158,1002^FD" + data.get("pais", "") + "^FS"
+       cmd += "\n^FO11,15^GB540,1,1^FS\n^FO191,345^GB360,1,1^FS\n^FO309,785^GB242,1,1^FS\n^FO105,1130^GB446,1,1^FS\n^FO195,639^GB98,1,1^FS\n^FO234,867^GB59,1,1^FS"
+    cmd += "\n^XZ"
     return cmd
 
 @app.route('/printData', methods=['POST'])
@@ -88,6 +91,7 @@ def printData():
     else:
         data = request.get_json()
 
+    #template = templates.get(data.get("template", ""))
     template = data.get("template", 0)
     if template not in [1,2,3]:
         return jsonify({"message": "Template does not exist"}), 400
@@ -98,16 +102,13 @@ def printData():
     try:
         printers = conn.getPrinters()
     except:
-        ################################
-        return jsonify({"message": ""}), 400
+        return jsonify({"message": "CUPS error: getPrinters()"}), 400
     if printer not in printers:
-        # guardar nueva impresora
         dev_name = ""
         try:
             devices = conn.getDevices()
         except:
-            ################################
-            return jsonify(), 400
+            return jsonify({"message": "CUPS error: getDevices()"}), 400
         for device_uri, device_info in devices.items():
             dev_name = device_info.get("device-info", "Impresora sin nombre").replace(" ", "_")
             dev_uri = device_uri
@@ -126,8 +127,7 @@ def printData():
             conn.enablePrinter(printer)
             conn.acceptJobs(printer)
         except:
-            ################################
-            return jsonify({}), 400
+            return jsonify({"message": "CUPS error: addPrinter()"}), 400
 
     # Campos obligatorios?
     '''
@@ -139,18 +139,18 @@ def printData():
 
     # generar etiqueta con los datos de la request
     commands = genCommands(data.get("fields", {}), template)
+    print(commands)
     options = {"raw": "true"}
 
     with open(tmp_file, "w") as f:
         f.write(commands)
+        f.close()
 
     try:
         conn.printFile(printer, tmp_file, "Trabajo raw", options)
         return jsonify({"message": "Impresion exitosa"}), 200
     except:
-        ################################
-        return jsonify({"message": ""}), 400
-    
+        return jsonify({"message": "CUPS error: printFile()"}), 400
 
 @app.route('/getPrinters', methods=['GET'])
 def getPrinters():
@@ -178,37 +178,43 @@ def statusPrinter():
     try:
         printers = conn.getPrinters()
     except:
-        return jsonify({"message": ""}), 400
+        return jsonify({"message": "CUPS error: getPrinters()"}), 400
     if printer not in printers:
         dev_name = ""
         try:
             devices = conn.getDevices()
         except:
-            ################################
-            return jsonify(), 400
-        for _, device_info in devices.items():
+            return jsonify({"message": "CUPS error: getDevices()"}), 400
+        for device_uri, device_info in devices.items():
             dev_name = device_info.get("device-info", "Impresora sin nombre").replace(" ", "_")
+            dev_uri = device_uri
+            dev_info = device_info
             if printer == dev_name:
                 break
         if printer != dev_name:
             return jsonify({"message": "printer not found"}), 400
-
-    with open(tmp_file, "w") as f:
-        f.write(" ")
-
+        try:
+            conn.addPrinter(
+                name=printer,
+                device=dev_uri,
+                location=dev_info.get("device-location", ""),
+                info=printer
+            )
+            conn.enablePrinter(printer)
+            conn.acceptJobs(printer)
+        except:
+            return jsonify({"message": "CUPS error: addPrinter()"}), 400
     try:
-        conn.printFile(printer, tmp_file, "Trabajo de prueba", {})
+        attr = conn.getPrinterAttributes(printer)
     except:
-        ################################
-        return jsonify({"message": ""}), 400
-    time.sleep(3)
-    attr = conn.getPrinterAttributes(printer_name)
-    state = attr["printer-state"]
-    msg = attr["printer-state-message"]
-    conn.cancelJob(job)
-    if state == 3:
-        msg = "Ready to print"
-    return jsonify({"message": msg}), 200
+        return jsonify({"message": "CUPS error: getPrinterAttributes()"}), 400
+    msg = attr.get("printer-state-message", "")
+    state = {
+        3: "Idle",
+        4: "Processing",
+        5: "Stopped"
+    }.get(attr.get("printer-state", 0), "Desconocido")
+    return jsonify({"message": msg, "state": state}), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
